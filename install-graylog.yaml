@@ -1,0 +1,191 @@
+---
+- hosts: web-servers
+  gather_facts: false
+  vars:
+    update_package_sources: apt update -y
+    update_system_packages: apt update  -y; apt upgrade -y 
+    install_dependencies: apt install apt-transport-https gnupg2 uuid-runtime pwgen curl dirmngr -y
+    install_jdk: apt install openjdk-17-jre-headless -y
+    java_version: java -version
+    echo_check_for_java: echo "java is installed"
+    jdk_path: /usr/lib/jvm/java-17-openjdk-amd64/bin/java
+    download_elasticsearch_key: wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add -
+    add_elasticsearch_repository: echo "deb https://artifacts.elastic.co/packages/oss-7.x/apt stable main" | sudo tee -a /etc/apt/sources.list.d/elastic-7.x.list
+    install_elasticsearch: apt install elasticsearch-oss -y
+    elasticsearch_config_location: /etc/elasticsearch/elasticsearch.yml
+    reload_daemon: systemctl daemon-reload
+    start_elasticsearch: systemctl start elasticsearch
+    enable_elasticsearch: systemctl enable elasticsearch
+    install_prerequesite_packages: sudo apt install -y software-properties-common gnupg apt-transport-https ca-certificates
+    add_mongodb_repository: wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | sudo apt-key add -
+    add_mongodb_repository_locally: echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/5.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-5.0.list
+    #add_mongodb_repository: wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | apt-key add - echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-4.4.list
+    download_graylog_repository: wget https://packages.graylog2.org/repo/packages/graylog-4.3-repository_latest.deb  
+    install_graylog_package: dpkg -i graylog-4.3-repository_latest.deb  
+    generate_graylog_secret: pwgen -N 1 -s 96
+    generate_graylog_password: echo -n "pas1sword" | shasum -a 256 | awk '{print $1}'
+    graylog_configuration_file_location: /etc/graylog/server/server.conf
+    gather_host_address: ip a | grep inet | grep global | awk '{print $2}' | grep -v '172*' | awk -F '/' '{print $1}'
+  tasks:
+
+    - name: Check connection
+      ansible.builtin.shell:
+        cmd: sudo hostname 
+
+    - name: Update System Packages
+      ansible.builtin.shell:
+        cmd: "{{ update_system_packages }}"
+      ignore_errors: true
+
+    - name: Install Needed Dependencies on the Server
+      ansible.builtin.shell:
+        cmd: "{{ install_dependencies }}"
+      ignore_errors: true
+
+    - name: Install JDK
+      ansible.builtin.shell:
+        cmd: "{{ install_jdk }}"
+
+    - name: Check the installation for java
+      ansible.builtin.stat:
+        path: "{{ jdk_path }}"
+      register: installerFileCheck
+    
+    - name: Attempt second installation of java, if it does not exist
+      ansible.builtin.shell:
+        cmd: "{{ install_jdk }}"
+      when: 
+        - installerFileCheck.stat.exists != true
+    
+    - name: Download and add Elasticsearch GPG key
+      ansible.builtin.shell:
+        cmd: "{{ download_elasticsearch_key }}"
+    
+    - name: Add Elasticsearch Repository
+      ansible.builtin.shell: 
+        cmd: "{{ add_elasticsearch_repository }}"
+    
+    - name: Update Package Sources
+      ansible.builtin.shell:
+        cmd: "{{ update_package_sources }}"
+    
+    - name: Install Elasticsearch
+      ansible.builtin.shell:
+        cmd: "{{ install_elasticsearch }}"
+
+    - name: Modify Elasticsearch Configuration
+      ansible.builtin.lineinfile:
+        path: "{{ elasticsearch_config_location }}"
+        regexp: '#cluster.name: my-application' 
+        line: 'cluster.name: graylog_application'
+        state: present
+    
+    - name: Insert Additional Configuration for Elasticsearch
+      ansible.builtin.lineinfile:
+        path: "{{ elasticsearch_config_location }}"
+        insertafter: 'cluster.name: graylog_application'
+        line: 'action.auto_create_index: false'
+
+    - name: Make sure the service is configured properly on the OS
+      ansible.builtin.shell:
+        cmd: "{{ reload_daemon }};{{ start_elasticsearch }};{{ enable_elasticsearch }}"
+    
+    - name: Install Prerequesite Packages
+      ansible.builtin.shell:
+        cmd: "{{ install_prerequesite_packages }}"
+
+    - name: Add MongoDB Repository
+      ansible.builtin.shell:
+        cmd: "{{ add_mongodb_repository }}"
+
+    - name: Add MongoDB Repository Locally
+      ansible.builtin.shell:
+        cmd: "{{ add_mongodb_repository_locally }};{{ update_package_sources }}"
+
+    - name: Install MongoDB
+      ansible.builtin.apt:
+        name: mongodb
+        state: present
+
+    - name: Install MongoDB-Org
+      ansible.builtin.apt:
+        name: mongodb-org
+        state: absent
+    
+    - name: Make sure the service is configured properly on the OS
+      ansible.builtin.service:
+        name: mongodb
+        state: started
+        enabled: yes
+
+    - name: Download Graylog Repository Package
+      ansible.builtin.shell:
+        cmd: "{{ download_graylog_repository }}"
+    
+    - name: Install Graylog Package
+      ansible.builtin.shell:
+        cmd: "{{ install_graylog_package }}"
+    
+    - name: Update OS Repository
+      ansible.builtin.shell: 
+        cmd: "{{ update_package_sources }}"
+
+    - name: Install Graylog Server
+      ansible.builtin.apt:
+        name: graylog-server
+        state: present
+    
+    - name: Generate Graylog Secret
+      ansible.builtin.shell:
+        cmd: "{{ generate_graylog_secret }}"
+      register: graylog_secret
+    
+    - name: Generate Graylog Password and Add Encryption
+      ansible.builtin.shell:
+        cmd: "{{ generate_graylog_password }}"
+      register: encrypted_graylog_password
+    
+    - name: Update the config file with the secret
+      ansible.builtin.lineinfile:
+        path: "{{ graylog_configuration_file_location }}"
+        regexp: 'password_secret =
+
+'
+        line: 'password_secret = {{ graylog_secret.stdout }}'
+    
+    - name: Update the config file with the encrypted password
+      ansible.builtin.lineinfile:
+        path: "{{ graylog_configuration_file_location }}"
+        regexp: 'root_password_sha2 =
+
+'
+        line: 'root_password_sha2 = {{ encrypted_graylog_password.stdout }}'
+    
+    - name: Grab the ip address of the machine
+      ansible.builtin.shell:
+        cmd: "{{ gather_host_address }}"
+      register: host_address
+    
+    - name: Insert the address into the configuration file for graylog
+      ansible.builtin.lineinfile:
+        path: "{{ graylog_configuration_file_location }}"
+        regexp: 'http_bind_address = 127.0.0.1:9000'
+        line: 'http_bind_address = {{ host_address.stdout }}:9000'
+    
+    - name: Reload daemon
+      ansible.builtin.shell:
+        cmd: "{{ reload_daemon }}"
+    
+    - name: Configure the graylog service
+      ansible.builtin.service:
+        name: graylog-server
+        state: started
+        enabled: true
+    
+
+    
+
+    
+
+    
+                  
