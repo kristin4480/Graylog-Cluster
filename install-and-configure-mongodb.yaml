@@ -1,0 +1,117 @@
+---
+- hosts: web-servers
+  gather_facts: true
+  vars:
+    install_prerequesite_packages: sudo apt install wget curl gnupg2 software-properties-common apt-transport-https ca-certificates lsb-release
+    add_mongodb_repository: curl -fsSL https://www.mongodb.org/static/pgp/server-6.0.asc|sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/mongodb-6.gpg
+    add_mongodb_repository_locally: echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+    install_python_module_mongo: python3 -m pip install pymongo
+    mongodb_configuration_file_location: /etc/mongod.conf
+    replicaset_name: "{{ mongodb.replicaset.name }}"
+    update_package_sources: apt update -y
+    update_system_packages: apt update  -y; apt upgrade -y
+    mongodb_repository_path: /etc/apt/trusted.gpg.d/mongodb-6.gpg
+    mongodb_config_path: /etc/mongod.conf
+  tasks:
+    
+    - name: Install Prerequesite Packages
+      ansible.builtin.shell:
+        cmd: "{{ install_prerequesite_packages }}"
+    
+    - name: Check if MongoDB Repository is present
+      ansible.builtin.stat:
+        path: "{{ mongodb_repository_path }}"
+      register: fileCheck
+
+    - name: Add MongoDB Repository
+      ansible.builtin.shell:
+        cmd: "{{ add_mongodb_repository }}"
+      when:
+        - fileCheck.stat.exists != true 
+
+    - name: Add MongoDB Repository Locally
+      ansible.builtin.shell:
+        cmd: "{{ add_mongodb_repository_locally }};{{ update_package_sources }}"
+
+    - name: Update System Packages
+      ansible.builtin.shell:
+        cmd: "{{ update_package_sources }}"
+      ignore_errors: true
+
+    - name: Install MongoDB
+      ansible.builtin.apt:
+        name: mongodb-org
+        state: present
+    
+    - name: Make sure the service is configured properly on the OS
+      ansible.builtin.service:
+        name: mongod
+        state: started
+        enabled: yes
+    
+    - name: Install PIP
+      ansible.builtin.apt:
+        name: python3-pip
+        state: present
+
+    - name: Install Python Library for Mongo
+      ansible.builtin.shell:
+        cmd: "{{ install_python_module_mongo }}"
+    
+    - name: Enable Replication
+      vars: 
+          tab: "  "
+      ansible.builtin.lineinfile:
+        path: "{{ mongodb_config_path }}"
+        insertafter: '#replication'
+        line: "{{'replication:
+
+  ' + tab + 'replSetName: \"' + mongodb.replica_set.name + '\"'}}"
+
+    - name: Change BindIP in mongo
+      vars:
+          tab: "  "
+      ansible.builtin.lineinfile:
+        path: "{{ mongodb_config_path }}"
+        regexp: "  bindIp: 127.0.0.1"
+        line: "{{tab + 'bindIp: ' + mongodb.server.bindIP}}"
+
+    - name: Reload MongoDB
+      ansible.builtin.service:
+        name: mongod
+        state: restarted
+
+    - name: Wait for service to be ready
+      ansible.builtin.wait_for:
+        port: "{{ mongodb.server.port }}"
+        host: "{{ inventory_hostname }}"
+        connect_timeout: 3
+        delay: 5
+        timeout: 10
+    
+    - name: Create MongoDB Replica Set
+      community.mongodb.mongodb_replicaset:
+        login_host: "{{ inventory_hostname }}"
+        login_port: "{{ mongodb.server.port }}"
+        replica_set: "{{ mongodb.replica_set.name }}"
+        members: "{{ groups['web-servers'] | product([':' + mongodb.server.port | string ]) | map('join') | list}}"
+        ssl: "{{ mongodb.server.ssl }}"
+        ssl_cert_reqs: "{{ mongodb.server.ssl_cert_reqs }}"
+        validate: "{{ mongodb.server.validate }}"
+        strict_compatibility: false
+      when: inventory_hostname == groups['web-servers'][0]
+
+    - name: Create Mongo Database
+      community.mongodb.mongodb_user:
+        database: "{{ mongodb.database.name }}"
+        name: "{{ mongodb.database.username }}"
+        password: "{{ mongodb.database.password }}"
+        roles: "{{ mongodb.database.roles | map('join') | list | join(',') }}"
+        state: present
+        ssl: "{{ mongodb.server.ssl }}"
+        ssl_cert_reqs: "{{ mongodb.server.ssl_cert_reqs }}"
+      retries: 10
+      delay: 5
+      register: result
+      until: result.changed == true
+      when: inventory_hostname == groups['web-servers'][0]

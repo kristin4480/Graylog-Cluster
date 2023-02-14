@@ -1,0 +1,111 @@
+---
+- hosts: web-servers
+  gather_facts: true
+  vars:
+    update_package_sources: apt update -y
+    update_system_packages: apt update  -y; apt upgrade -y 
+    reload_daemon: systemctl daemon-reload
+    download_graylog_repository: wget https://packages.graylog2.org/repo/packages/graylog-4.3-repository_latest.deb  
+    install_graylog_package: dpkg -i graylog-4.3-repository_latest.deb  
+    generate_graylog_password: echo "pas1swWWrd2344354453eedfd"
+    encrypt_graylog_password: echo -n "pas1swWWrd2344354453eedfd" | shasum -a 256 | awk '{print $1}'
+    graylog_configuration_file_location: /etc/graylog/server/server.conf
+  tasks:
+        
+    - name: Download Graylog Repository Package
+      ansible.builtin.shell:
+        cmd: "{{ download_graylog_repository }}"
+    
+    - name: Install Graylog Package
+      ansible.builtin.shell:
+        cmd: "{{ install_graylog_package }}"
+    
+    - name: Update OS Repository
+      ansible.builtin.shell: 
+        cmd: "{{ update_package_sources }}"
+
+    - name: Install Graylog Enterprise
+      ansible.builtin.apt:
+        name: graylog-enterprise
+        state: present
+    
+    - name: Generate Graylog Password
+      ansible.builtin.shell:
+        cmd: "{{ generate_graylog_password  }}"
+      register: generated_graylog_password
+    
+    - name: Update the config file with the secret
+      ansible.builtin.lineinfile:
+        path: "{{ graylog_configuration_file_location }}"
+        regexp: 'password_secret =
+
+'
+        line: 'password_secret = {{ generated_graylog_password.stdout }} '
+    
+    - name: Encrypt the graylog password
+      ansible.builtin.shell:
+        cmd: "{{ encrypt_graylog_password }}"
+      register: encrypted_graylog_password
+
+    - name: Update the config file with the encrypted password
+      ansible.builtin.lineinfile:
+        path: "{{ graylog_configuration_file_location }}"
+        regexp: 'root_password_sha2 =
+
+'
+        line: 'root_password_sha2 = {{ encrypted_graylog_password.stdout }}'
+    
+    - name: Add Rest URI to the Config
+      ansible.builtin.lineinfile:
+        path: "{{ graylog_configuration_file_location }}"
+        insertafter: '#elasticsearch_mute_deprecation_warnings = true'
+        line: "{{ 'rest_listen_uri =* http://0.0.0.0:' + graylog.rest.port | string + '/' }}"
+    
+    - name: Insert the address into the configuration file for graylog
+      ansible.builtin.lineinfile:
+        path: "{{ graylog_configuration_file_location }}"
+        regexp: 'http_bind_address = 127.0.0.1:9000'
+        line: "{{ 'http_bind_address =' + ansible_default_ipv4.address + ':' + graylog.server.port | string }} "
+    
+    - name: Configure the leader
+      ansible.builtin.lineinfile:
+        path: "{{ graylog_configuration_file_location }}"
+        regexp: "is_leader = true"
+        line: "is_leader = false"
+      when: inventory_hostname != groups['web-servers'][0]
+
+    - name: Configure Elasticsearch cluster for graylog
+      ansible.builtin.lineinfile:
+        path: "{{ graylog_configuration_file_location }}"
+        insertafter: '# List of Elasticsearch hosts Graylog should connect to.'
+        line: 'elasticsearch_cluster_name = graylog-elasticsearch'
+
+    - name: Configure Elasticsearch Details for graylog
+      ansible.builtin.lineinfile:
+        path: "{{ graylog_configuration_file_location }}"
+        insertafter: 'elasticsearch_cluster_name = graylog-elasticsearch'
+        line: "{{'elasticsearch_discovery_zen_ping_multicast_enabled = false
+
+elasticsearch_discovery_zen_ping_unicast_hosts = ' + groups['elasticsearch-nodes'] | product([':' + elasticsearch.server_synchronization.port | string ]) | map('join') | list | join(',')}}"
+    
+    - name: Update Elasticsearch configuration for graylog
+      ansible.builtin.lineinfile:
+        path: "{{ graylog_configuration_file_location }}"
+        insertafter: '#elasticsearch_hosts = http://node1:9200,http://user:password@node2:19200'
+        line: "{{ 'elasticsearch_hosts = ' + ['http://'] | product(groups['elasticsearch-nodes']) | map('join') |  product([':' + elasticsearch.server.port | string ]) | map('join') | list | join(',') }}"
+
+    - name: Update Mongo configuration for graylog
+      ansible.builtin.lineinfile:
+        path: "{{ graylog_configuration_file_location }}"
+        regexp: 'mongodb_uri = mongodb://localhost/graylog'
+        line: "{{ 'mongodb_uri = mongodb://' + groups['web-servers'] | product([':' + mongodb.server.port | string ]) | map('join') | list | join(',') + '/' + mongodb.database.name + '?replicaSet=' + mongodb.replica_set.name }}"
+
+    - name: Reload daemon
+      ansible.builtin.shell:
+        cmd: "{{ reload_daemon }}"
+    
+    - name: Configure the graylog service
+      ansible.builtin.service:
+        name: graylog-server
+        state: restarted
+        enabled: true

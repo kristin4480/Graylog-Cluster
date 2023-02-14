@@ -1,0 +1,18 @@
+---
+mongodb:
+  server:
+    port: 27017
+    ssl: false
+    ssl_cert_reqs: "CERT_NONE"
+    validate: false
+    bindIP: 0.0.0.0
+  database:
+    username:
+    password:
+    name: graylog
+    roles: 
+      - readWrite
+      - dbAdmin
+      - userAdmin
+  replica_set: 
+    name: replicaset-01

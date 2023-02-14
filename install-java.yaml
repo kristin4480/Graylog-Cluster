@@ -1,0 +1,29 @@
+---
+- hosts: web-servers,elasticsearch-nodes
+  gather_facts: true
+  vars:
+    update_package_sources: apt update -y
+    update_system_packages: apt update  -y; apt upgrade -y 
+    install_dependencies: apt install apt-transport-https gnupg2 uuid-runtime pwgen curl dirmngr -y
+    install_jdk: apt install openjdk-17-jre-headless -y
+  tasks:
+
+    - name: Update System Packages
+      ansible.builtin.shell:
+        cmd: "{{ update_system_packages }}"
+      ignore_errors: true
+
+    - name: Install Prerequistes
+      ansible.builtin.apt:
+        name: ntp
+        state: present
+
+    - name: Install Needed Dependencies on the Server
+      ansible.builtin.shell:
+        cmd: "{{ install_dependencies }}"
+      ignore_errors: true
+
+    - name: Install JDK
+      ansible.builtin.apt:
+        name: openjdk-17-jre-headless
+        state: present

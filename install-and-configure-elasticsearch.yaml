@@ -1,0 +1,91 @@
+---
+- hosts: elasticsearch-nodes
+  gather_facts: true
+  vars:
+    download_elasticsearch_key: wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add -
+    add_elasticsearch_repository: echo "deb https://artifacts.elastic.co/packages/oss-7.x/apt stable main" | sudo tee -a /etc/apt/sources.list.d/elastic-7.x.list
+    install_elasticsearch: apt install elasticsearch-oss -y
+    elasticsearch_config_location: /etc/elasticsearch/elasticsearch.yml
+    update_package_sources: apt update -y
+    update_system_packages: apt update  -y; apt upgrade -y
+  tasks:
+    
+    - name: Download and add Elasticsearch GPG key
+      ansible.builtin.shell:
+        cmd: "{{ download_elasticsearch_key }}"
+    
+    - name: Add Elasticsearch Repository
+      ansible.builtin.shell: 
+        cmd: "{{ add_elasticsearch_repository }}"
+    
+    - name: Update Package Sources
+      ansible.builtin.shell:
+        cmd: "{{ update_package_sources }}"
+
+    - name: Install Elasticsearch
+      ansible.builtin.apt:
+        name: elasticsearch-oss
+        state: present
+
+    - name: Modify Elasticsearch Configuration
+      ansible.builtin.lineinfile:
+        path: "{{ elasticsearch_config_location }}"
+        insertafter: '#cluster.name: my-application' 
+        line: 'cluster.name: graylog_application'
+        
+    - name: Insert Additional Configuration for Elasticsearch
+      ansible.builtin.lineinfile:
+        path: "{{ elasticsearch_config_location }}"
+        insertafter: '#http.port: 9200'
+        line: "{{ 'http.port: ' + elasticsearch.server.port | string}}"
+    
+    - name: Append More Configuration for Elasticsearch
+      ansible.builtin.lineinfile:
+        path: "{{ elasticsearch_config_location }}"
+        insertafter: 'action.auto_create_index: false'
+        line: 'discovery.zen.minimum_master_nodes: 2'
+    
+    - name: Give name to the elasticsearch node
+      ansible.builtin.lineinfile:
+        path: "{{ elasticsearch_config_location }}"
+        regexp: '#node.name: node-1'
+        line: "{{ 'node.name: ' + elasticsearch.node.name + ansible_default_ipv4.address | replace('.','-') }}"
+    
+    - name: Define node1 as master
+      ansible.builtin.lineinfile:
+        path: "{{ elasticsearch_config_location }}"
+        insertafter: "{{ 'node.name:' + elasticsearch.node.name }}"
+        line: 'node.master: true'
+      when: inventory_hostname == groups['elasticsearch-nodes'][0]
+
+    - name: Define node2 as worker
+      ansible.builtin.lineinfile:
+        path: "{{ elasticsearch_config_location }}"
+        insertafter: '# Use a descriptive name for the node:'
+        line: 'node.data: true'
+      when: inventory_hostname != groups['elasticsearch-nodes'][0]
+    
+    - name: Adjust The Network Host
+      ansible.builtin.lineinfile:
+        path: "{{ elasticsearch_config_location }}"
+        insertafter: '#network.host: '
+        line: 'network.host: {{ ansible_default_ipv4.address  }} '
+    - debug:
+        msg: "{{ groups['web-servers'][0] }}"
+        
+    - name: Add Graylog master to initial cluster
+      ansible.builtin.lineinfile:
+        path: "{{ elasticsearch_config_location }}"
+        regexp: '#cluster.initial_master_nodes: \[\"node-1\", \"node-2\"\]'
+        line: "{{ 'cluster.initial_master_nodes: [\"' + elasticsearch.node.name + (groups['elasticsearch-nodes'][0] | replace('.','-')) + '\"]' }}"
+
+    - name: Add Discoverable Hosts
+      ansible.builtin.lineinfile:
+        path: "{{ elasticsearch_config_location }}"
+        insertafter: '#discovery.seed_hosts:'
+        line: "{{'discovery.zen.ping.unicast.hosts: [' + ['\"'] | product(groups['elasticsearch-nodes']) |  map('join') | product(['\"']) | map('join') | list | join(',') + ']'}}"
+
+    - name: Restart elasticsearch
+      ansible.builtin.service:
+        name: elasticsearch
+        state: restarted

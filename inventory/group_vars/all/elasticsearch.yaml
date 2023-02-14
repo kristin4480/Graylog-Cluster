@@ -1,0 +1,10 @@
+---
+elasticsearch:
+  server:
+    listen:
+    port: 9200
+  node:
+    name: node-
+  server_synchronization:
+    port: 9300
+    

@@ -1,3 +1,5 @@
 [web-servers]
-192.168.1.60
-192.168.1.61
+
+[elasticsearch-nodes]
+
+[load-balancers]

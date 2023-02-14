@@ -1,0 +1,4 @@
+---
+haproxy:
+  server:
+    port: 51400

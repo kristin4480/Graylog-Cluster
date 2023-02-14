@@ -1,0 +1,6 @@
+---
+graylog:
+  server:
+    port: 9000
+  rest:
+    port: 12900

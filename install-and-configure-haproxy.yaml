@@ -1,0 +1,21 @@
+---
+- hosts: load-balancers
+  gather_facts: false
+  vars:
+    jinja_src_location: /home/kris/ansible_practice/graylog_installation/work_files/haproxy.cfg
+  tasks:
+     
+     - name: Install HaProxy
+       ansible.builtin.apt:
+         name: haproxy
+         state: present
+    
+     - name: Apply HaProxy Configuration From Source
+       ansible.builtin.template:
+         src: "{{ jinja_src_location }}"
+         dest: /etc/haproxy/haproxy.cfg
+      
+     - name: Reload haproxy
+       ansible.builtin.service:
+         name: haproxy
+         state: restarted
