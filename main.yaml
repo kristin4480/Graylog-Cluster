@@ -1,6 +1,6 @@
 ---
-# - import_playbook: "install-java.yaml"
-# - import_playbook: "install-and-configure-elasticsearch.yaml"
-# - import_playbook: "install-and-configure-mongodb.yaml"
-# - import_playbook: "install-and-configure-graylog.yaml"
+- import_playbook: "install-java.yaml"
+- import_playbook: "install-and-configure-elasticsearch.yaml"
+- import_playbook: "install-and-configure-mongodb.yaml"
+- import_playbook: "install-and-configure-graylog.yaml"
 - import_playbook: "install-and-configure-haproxy.yaml"

@@ -71,7 +71,7 @@
         insertafter: '#network.host: '
         line: 'network.host: {{ ansible_default_ipv4.address  }} '
     - debug:
-        msg: "{{ groups['web-servers'][0] }}"
+        msg: "{{ groups['graylog-servers'][0] }}"
         
     - name: Add Graylog master to initial cluster
       ansible.builtin.lineinfile:

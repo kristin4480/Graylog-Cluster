@@ -1,5 +1,5 @@
 ---
-- hosts: web-servers
+- hosts: graylog-servers
   gather_facts: true
   vars:
     update_package_sources: apt update -y
@@ -72,7 +72,7 @@
         path: "{{ graylog_configuration_file_location }}"
         regexp: "is_leader = true"
         line: "is_leader = false"
-      when: inventory_hostname != groups['web-servers'][0]
+      when: inventory_hostname != groups['graylog-servers'][0]
 
     - name: Configure Elasticsearch cluster for graylog
       ansible.builtin.lineinfile:
@@ -98,7 +98,7 @@ elasticsearch_discovery_zen_ping_unicast_hosts = ' + groups['elasticsearch-nodes
       ansible.builtin.lineinfile:
         path: "{{ graylog_configuration_file_location }}"
         regexp: 'mongodb_uri = mongodb://localhost/graylog'
-        line: "{{ 'mongodb_uri = mongodb://' + groups['web-servers'] | product([':' + mongodb.server.port | string ]) | map('join') | list | join(',') + '/' + mongodb.database.name + '?replicaSet=' + mongodb.replica_set.name }}"
+        line: "{{ 'mongodb_uri = mongodb://' + groups['graylog-servers'] | product([':' + mongodb.server.port | string ]) | map('join') | list | join(',') + '/' + mongodb.database.name + '?replicaSet=' + mongodb.replica_set.name }}"
 
     - name: Reload daemon
       ansible.builtin.shell:

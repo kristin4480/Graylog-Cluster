@@ -1,5 +1,5 @@
 ---
-- hosts: web-servers,elasticsearch-nodes
+- hosts: graylog-servers,elasticsearch-nodes
   gather_facts: true
   vars:
     update_package_sources: apt update -y

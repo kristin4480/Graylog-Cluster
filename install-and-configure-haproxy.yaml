@@ -3,6 +3,7 @@
   gather_facts: false
   vars:
     jinja_src_location: /home/kris/ansible_practice/graylog_installation/work_files/haproxy.cfg
+    remote_haproxy_config: /etc/haproxy/haproxy.cfg
   tasks:
      
      - name: Install HaProxy
@@ -13,7 +14,7 @@
      - name: Apply HaProxy Configuration From Source
        ansible.builtin.template:
          src: "{{ jinja_src_location }}"
-         dest: /etc/haproxy/haproxy.cfg
+         dest: "{{ remote_haproxy_config }}"
       
      - name: Reload haproxy
        ansible.builtin.service:

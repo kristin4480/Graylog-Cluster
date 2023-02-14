@@ -1,5 +1,5 @@
 ---
-- hosts: web-servers
+- hosts: graylog-servers
   gather_facts: true
   vars:
     install_prerequesite_packages: sudo apt install wget curl gnupg2 software-properties-common apt-transport-https ca-certificates lsb-release
@@ -94,12 +94,12 @@
         login_host: "{{ inventory_hostname }}"
         login_port: "{{ mongodb.server.port }}"
         replica_set: "{{ mongodb.replica_set.name }}"
-        members: "{{ groups['web-servers'] | product([':' + mongodb.server.port | string ]) | map('join') | list}}"
+        members: "{{ groups['graylog-servers'] | product([':' + mongodb.server.port | string ]) | map('join') | list}}"
         ssl: "{{ mongodb.server.ssl }}"
         ssl_cert_reqs: "{{ mongodb.server.ssl_cert_reqs }}"
         validate: "{{ mongodb.server.validate }}"
         strict_compatibility: false
-      when: inventory_hostname == groups['web-servers'][0]
+      when: inventory_hostname == groups['graylog-servers'][0]
 
     - name: Create Mongo Database
       community.mongodb.mongodb_user:
@@ -114,4 +114,4 @@
       delay: 5
       register: result
       until: result.changed == true
-      when: inventory_hostname == groups['web-servers'][0]
+      when: inventory_hostname == groups['graylog-servers'][0]
