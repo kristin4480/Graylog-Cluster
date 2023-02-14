@@ -2,7 +2,7 @@
 - hosts: load-balancers
   gather_facts: false
   vars:
-    jinja_src_location: /home/kris/ansible_practice/graylog_installation/work_files/haproxy.cfg
+    jinja_src_location:
     remote_haproxy_config: /etc/haproxy/haproxy.cfg
   tasks:
      
