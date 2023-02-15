@@ -3,6 +3,7 @@ elasticsearch:
   server:
     listen:
     port: 9200
+    config_path: /etc/elasticsearch/elasticsearch.yml
   node:
     name: node-
   server_synchronization:

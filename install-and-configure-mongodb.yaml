@@ -6,12 +6,11 @@
     add_mongodb_repository: curl -fsSL https://www.mongodb.org/static/pgp/server-6.0.asc|sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/mongodb-6.gpg
     add_mongodb_repository_locally: echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
     install_python_module_mongo: python3 -m pip install pymongo
-    mongodb_configuration_file_location: /etc/mongod.conf
     replicaset_name: "{{ mongodb.replicaset.name }}"
     update_package_sources: apt update -y
     update_system_packages: apt update  -y; apt upgrade -y
-    mongodb_repository_path: /etc/apt/trusted.gpg.d/mongodb-6.gpg
-    mongodb_config_path: /etc/mongod.conf
+    mongodb_repository_path: "{{ mongodb.server.repository_path }}"
+    mongodb_config_path: "{{ mongodb.server.config_path }}"
   tasks:   
     - name: Install Prerequesite Packages
       ansible.builtin.shell:

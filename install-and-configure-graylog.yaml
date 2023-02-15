@@ -9,7 +9,7 @@
     install_graylog_package: dpkg -i graylog-4.3-repository_latest.deb  
     generate_graylog_password: echo "{{ graylog.server.password }}"
     encrypt_graylog_password: echo -n "{{ graylog.server.password }}" | shasum -a 256 | awk '{print $1}'
-    graylog_configuration_file_location: /etc/graylog/server/server.conf
+    graylog_configuration_file_location: "{{ graylog.server.config_path }}"
   tasks:   
     - name: Download Graylog Repository Package
       ansible.builtin.shell:

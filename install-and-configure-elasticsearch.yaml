@@ -5,7 +5,7 @@
     download_elasticsearch_key: wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add -
     add_elasticsearch_repository: echo "deb https://artifacts.elastic.co/packages/oss-7.x/apt stable main" | sudo tee -a /etc/apt/sources.list.d/elastic-7.x.list
     install_elasticsearch: apt install elasticsearch-oss -y
-    elasticsearch_config_location: /etc/elasticsearch/elasticsearch.yml
+    elasticsearch_config_location: "{{ elasticsearch.server.config_path }}"
     update_package_sources: apt update -y
     update_system_packages: apt update  -y; apt upgrade -y
   tasks:   

@@ -2,3 +2,6 @@
 haproxy:
   server:
     port: 51400
+  jinja_template:
+    src_location: 
+    dest_location: /etc/haprxy/haproxy.cfg

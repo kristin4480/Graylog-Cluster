@@ -3,5 +3,6 @@ graylog:
   server:
     port: 9000
     password: yourPassword
+    config_path: /etc/graylog/server/server.conf
   rest:
     port: 12900

@@ -6,6 +6,8 @@ mongodb:
     ssl_cert_reqs: "CERT_NONE"
     validate: false
     bindIP: 0.0.0.0
+    config_path: /etc/mongod.conf
+    repository_path: /etc/apt/trusted.gpg.d/mongodb-6.gpg
   database:
     username:
     password:

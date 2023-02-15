@@ -2,8 +2,8 @@
 - hosts: load-balancers
   gather_facts: false
   vars:
-    jinja_src_location:
-    remote_haproxy_config: /etc/haproxy/haproxy.cfg
+    jinja_src_location: "{{ haproxy.jinja_template.src_location }}"
+    remote_haproxy_config: "{{ haproxy.jinja_template.dest_location }}"
   tasks:    
      - name: Install HaProxy
        ansible.builtin.apt:
