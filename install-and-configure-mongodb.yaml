@@ -12,8 +12,7 @@
     update_system_packages: apt update  -y; apt upgrade -y
     mongodb_repository_path: /etc/apt/trusted.gpg.d/mongodb-6.gpg
     mongodb_config_path: /etc/mongod.conf
-  tasks:
-    
+  tasks:   
     - name: Install Prerequesite Packages
       ansible.builtin.shell:
         cmd: "{{ install_prerequesite_packages }}"

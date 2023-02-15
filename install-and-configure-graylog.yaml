@@ -7,11 +7,10 @@
     reload_daemon: systemctl daemon-reload
     download_graylog_repository: wget https://packages.graylog2.org/repo/packages/graylog-4.3-repository_latest.deb  
     install_graylog_package: dpkg -i graylog-4.3-repository_latest.deb  
-    generate_graylog_password: echo "pas1swWWrd2344354453eedfd"
-    encrypt_graylog_password: echo -n "pas1swWWrd2344354453eedfd" | shasum -a 256 | awk '{print $1}'
+    generate_graylog_password: echo "{{ graylog.server.password }}"
+    encrypt_graylog_password: echo -n "{{ graylog.server.password }}" | shasum -a 256 | awk '{print $1}'
     graylog_configuration_file_location: /etc/graylog/server/server.conf
-  tasks:
-        
+  tasks:   
     - name: Download Graylog Repository Package
       ansible.builtin.shell:
         cmd: "{{ download_graylog_repository }}"

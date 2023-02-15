@@ -4,8 +4,7 @@
   vars:
     jinja_src_location:
     remote_haproxy_config: /etc/haproxy/haproxy.cfg
-  tasks:
-     
+  tasks:    
      - name: Install HaProxy
        ansible.builtin.apt:
          name: haproxy

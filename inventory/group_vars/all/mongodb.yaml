@@ -14,5 +14,5 @@ mongodb:
       - readWrite
       - dbAdmin
       - userAdmin
-  replica_set: 
+  replica_set:
     name: replicaset-01

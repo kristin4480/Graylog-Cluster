@@ -8,8 +8,7 @@
     elasticsearch_config_location: /etc/elasticsearch/elasticsearch.yml
     update_package_sources: apt update -y
     update_system_packages: apt update  -y; apt upgrade -y
-  tasks:
-    
+  tasks:   
     - name: Download and add Elasticsearch GPG key
       ansible.builtin.shell:
         cmd: "{{ download_elasticsearch_key }}"
