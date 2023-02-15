@@ -1,5 +1,7 @@
 # Graylog-Cluster
 Automating the process of creating a highly available Graylog Cluster with Ansible
+
+
 This project is for Linux servers only, that are running Ubuntu 20.04 LTS server as an OS
 
 Software Requirements:
